@@ -5,16 +5,26 @@
 #include <cstdlib>
 #include <vector>
 
+#ifdef _WIN32
+#include <fcntl.h>
+#include <io.h>
+#endif
+
 namespace {
 
-// Single-quote a path so it survives /bin/sh -c.
+// Single-quote a path so it survives /bin/sh -c. On Windows the shell is
+// cmd.exe, which has no single-quote syntax — use double quotes there.
 std::string quote(const std::string& s) {
+#if defined(_WIN32)
+    return "\"" + s + "\"";
+#else
     std::string q = "'";
     for (char c : s) {
         if (c == '\'') q += "'\\''";
         else           q += c;
     }
     return q + "'";
+#endif
 }
 
 std::string delayChain(int inputIndex, int delayMs) {
@@ -41,6 +51,11 @@ bool FramePipe::open(const std::string& outPath, int w, int h, int fps, int crf)
         LOG_E("Failed to spawn ffmpeg: %s", cmd.c_str());
         return false;
     }
+#ifdef _WIN32
+    // _popen hands back a text-mode pipe. Without this, every 0x0A byte in the
+    // raw pixel stream expands to 0x0D 0x0A and the video comes out corrupt.
+    _setmode(_fileno(m_pipe), _O_BINARY);
+#endif
     LOG_D("FramePipe: %s", cmd.c_str());
     return true;
 }
