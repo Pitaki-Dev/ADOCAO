@@ -296,7 +296,9 @@ bool GameWindow::init(const LauncherConfig& cfg, LoadResult& result) {
         if (hex.length()>=6) { unsigned r,g,b; sscanf(hex.c_str(),"%02x%02x%02x",&r,&g,&b);
             m_bgR=r/255.0f; m_bgG=g/255.0f; m_bgB=b/255.0f; }
     }
-    m_camera.setZoom(m_level->settings.zoom);
+    m_camera.setZoom(cfg.cameraZoom > 0.0f ? cfg.cameraZoom : m_level->settings.zoom);
+    LOG_D("Camera zoom: %.1f (level=%.1f%s)", m_camera.zoom(), m_level->settings.zoom,
+          cfg.cameraZoom > 0.0f ? ", overridden by --zoom" : "");
     if (!m_level->tiles.empty()) { auto& t = m_level->tiles[0];
         m_camera.setTarget(t.position[0], t.position[1]);
         m_input.baseTargetX = t.position[0]; m_input.baseTargetY = t.position[1];

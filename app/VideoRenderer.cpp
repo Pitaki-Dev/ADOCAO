@@ -106,8 +106,10 @@ int renderLevelToVideo(const LauncherConfig& cfg) {
     // t = 0 is the start of the pre-roll; the last tile is reached at
     // tileStartTimes().back(), plus a configurable tail.
     const Timeline& tl = *loadResult.timeline;
-    const double endSec = (double)tl.preRoll() + tl.tileStartTimes().back()
-                        + (double)cfg.renderTailSeconds;
+    double endSec = (double)tl.preRoll() + tl.tileStartTimes().back()
+                  + (double)cfg.renderTailSeconds;
+    if (cfg.renderDurationSeconds > 0.0f && (double)cfg.renderDurationSeconds < endSec)
+        endSec = (double)cfg.renderDurationSeconds;
     const long long totalFrames = (long long)std::llround(endSec * (double)fps);
     LOG_I("Render: %lld frames, %dx%d @ %d fps (%.2fs)", totalFrames, w, h, fps, endSec);
 

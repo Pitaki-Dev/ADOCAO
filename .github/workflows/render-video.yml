@@ -31,6 +31,10 @@ on:
         description: 'Frame rate'
         required: false
         default: '120'
+      zoom:
+        description: 'Camera zoom override (empty = level value). Visible width = 2133.3 / zoom world units.'
+        required: false
+        default: ''
       crf:
         description: 'x264 CRF, lower = better quality'
         required: false
@@ -59,6 +63,7 @@ jobs:
       FPS: ${{ inputs.fps }}
       CRF: ${{ inputs.crf }}
       TAIL: ${{ inputs.tail }}
+      ZOOM: ${{ inputs.zoom }}
 
     steps:
       - uses: actions/checkout@v4
@@ -121,6 +126,7 @@ jobs:
               --render work/output.mp4 \
               --width "$WIDTH" --height "$HEIGHT" \
               --fps "$FPS" --crf "$CRF" --tail "$TAIL" \
+              ${ZOOM:+--zoom "$ZOOM"} \
               --debug
 
       - name: Inspect output

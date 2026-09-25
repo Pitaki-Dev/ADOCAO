@@ -39,6 +39,8 @@ struct LauncherConfig {
     int   renderFps         = 60;
     int   renderCrf         = 18;
     float renderTailSeconds = 1.0f;
+    float cameraZoom        = 0.0f;   // --zoom: overrides the level's settings.zoom (0 = keep level value)
+    float renderDurationSeconds = 0.0f; // --duration: cap the render length (0 = whole level)
     bool offlineRender() const { return !renderVideoPath.empty(); }
 
     // Wizard (5.0.0): result of the "Next" preload step (parse + timeline).

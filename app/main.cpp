@@ -50,6 +50,8 @@ int main(int argc, char* argv[]) {
         else if (strcmp(argv[i], "--fps") == 0      && i+1<argc) cli.renderFps = atoi(argv[++i]);
         else if (strcmp(argv[i], "--crf") == 0      && i+1<argc) cli.renderCrf = atoi(argv[++i]);
         else if (strcmp(argv[i], "--tail") == 0     && i+1<argc) cli.renderTailSeconds = (float)atof(argv[++i]);
+        else if (strcmp(argv[i], "--zoom") == 0     && i+1<argc) cli.cameraZoom = (float)atof(argv[++i]);
+        else if (strcmp(argv[i], "--duration") == 0 && i+1<argc) cli.renderDurationSeconds = (float)atof(argv[++i]);
     }
 
     if (cli.exportHitsounds && !cli.levelPath.empty()) {
