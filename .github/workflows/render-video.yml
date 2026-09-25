@@ -35,6 +35,10 @@ on:
         description: 'Camera zoom override (empty = level value). Visible width = 2133.3 / zoom world units.'
         required: false
         default: ''
+      encoder:
+        description: 'Video encoder (empty/auto = NVENC when available, else libx264)'
+        required: false
+        default: ''
       crf:
         description: 'x264 CRF, lower = better quality'
         required: false
@@ -64,6 +68,7 @@ jobs:
       CRF: ${{ inputs.crf }}
       TAIL: ${{ inputs.tail }}
       ZOOM: ${{ inputs.zoom }}
+      ENCODER: ${{ inputs.encoder }}
 
     steps:
       - uses: actions/checkout@v4
@@ -128,7 +133,8 @@ jobs:
               --render work/output.mp4 \
               --width "$WIDTH" --height "$HEIGHT" \
               --fps "$FPS" --crf "$CRF" --tail "$TAIL" \
-              ${ZOOM:+--zoom "$ZOOM"}
+              ${ZOOM:+--zoom "$ZOOM"} \
+              ${ENCODER:+--encoder "$ENCODER"}
 
       - name: Render log
         if: always()

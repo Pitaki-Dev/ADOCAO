@@ -52,6 +52,7 @@ int main(int argc, char* argv[]) {
         else if (strcmp(argv[i], "--tail") == 0     && i+1<argc) cli.renderTailSeconds = (float)atof(argv[++i]);
         else if (strcmp(argv[i], "--zoom") == 0     && i+1<argc) cli.cameraZoom = (float)atof(argv[++i]);
         else if (strcmp(argv[i], "--duration") == 0 && i+1<argc) cli.renderDurationSeconds = (float)atof(argv[++i]);
+        else if (strcmp(argv[i], "--encoder") == 0  && i+1<argc) cli.videoEncoder = argv[++i];
     }
 
     if (cli.exportHitsounds && !cli.levelPath.empty()) {

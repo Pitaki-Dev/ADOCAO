@@ -15,7 +15,8 @@ public:
     FramePipe(const FramePipe&) = delete;
     FramePipe& operator=(const FramePipe&) = delete;
 
-    bool open(const std::string& outPath, int w, int h, int fps, int crf);
+    bool open(const std::string& outPath, int w, int h, int fps, int crf,
+              const std::string& encoder);
     bool writeFrame(const void* rgba, size_t bytes);
     bool close();  // flush + wait; false if ffmpeg exited non-zero
 
@@ -23,6 +24,9 @@ private:
     FILE* m_pipe = nullptr;
     std::string m_out;
 };
+
+// True if the local ffmpeg build lists this encoder (e.g. "h264_nvenc").
+bool ffmpegHasEncoder(const std::string& name);
 
 // Muxes the silent render with the level's music and the pre-synthesized
 // hitsounds. Both audio tracks are delayed by `delaySec` so they line up with

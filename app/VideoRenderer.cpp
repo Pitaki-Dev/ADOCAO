@@ -8,8 +8,10 @@
 #include "core/util/Logger.hpp"
 #include "glad/gl_core.hpp"
 
+#include <cctype>
 #include <cmath>
 #include <cstdio>
+#include <string>
 #include <vector>
 
 namespace {
@@ -70,6 +72,40 @@ private:
 
 } // namespace
 
+namespace {
+
+// Rasterisers that mean "no GPU is doing the drawing".
+bool isSoftwareRenderer(const std::string& name) {
+    static const char* kNeedles[] = {
+        "llvmpipe", "softpipe", "swrast", "software",
+        "microsoft basic render", "swiftshader", "mesa offscreen",
+    };
+    std::string lower = name;
+    for (char& c : lower) c = (char)std::tolower((unsigned char)c);
+    for (const char* n : kNeedles)
+        if (lower.find(n) != std::string::npos) return true;
+    return false;
+}
+
+// Video encoding is the one part of the export that is not already on the GPU,
+// so spend the GPU there: NVENC on NVIDIA, libx264 otherwise.
+std::string pickEncoder(const std::string& requested, const std::string& renderer) {
+    if (!requested.empty() && requested != "auto") {
+        if (!ffmpegHasEncoder(requested))
+            LOG_W("Encoder '%s' is not in this ffmpeg build — trying it anyway",
+                  requested.c_str());
+        return requested;
+    }
+    if (renderer.find("NVIDIA") != std::string::npos && ffmpegHasEncoder("h264_nvenc")) {
+        LOG_I("NVIDIA GPU + h264_nvenc available -> encoding on the GPU");
+        return "h264_nvenc";
+    }
+    LOG_I("No hardware encoder detected -> libx264 (CPU)");
+    return "libx264";
+}
+
+} // namespace
+
 int renderLevelToVideo(const LauncherConfig& cfg) {
     LoadResult loadResult;
     LoadingProgress progress;
@@ -87,6 +123,18 @@ int renderLevelToVideo(const LauncherConfig& cfg) {
         return 1;
     }
 
+    // Report what is actually drawing, and pick an encoder for it.
+    const char* glVendor = (const char*)glGetString(GL_VENDOR);
+    const char* glRen    = (const char*)glGetString(GL_RENDERER);
+    const std::string renderer = glRen ? glRen : "?";
+    LOG_I("Render GPU: %s | %s", glVendor ? glVendor : "?", renderer.c_str());
+    if (isSoftwareRenderer(renderer))
+        LOG_W("Software rasteriser in use (%s) — drawing will be slow. "
+              "Expected on CI runners; locally, check the GPU driver is being used.",
+              renderer.c_str());
+    const std::string encoder = pickEncoder(cfg.videoEncoder, renderer);
+    LOG_I("Video encoder: %s", encoder.c_str());
+
     const int w = cfg.resolutionW, h = cfg.resolutionH, fps = cfg.renderFps;
     OffscreenTarget target;
     if (!target.create(w, h)) { gw.shutdown(); return 1; }
@@ -101,7 +149,7 @@ int renderLevelToVideo(const LauncherConfig& cfg) {
 
     const std::string silentVideo = cfg.renderVideoPath + ".video.mp4";
     FramePipe pipe;
-    if (!pipe.open(silentVideo, w, h, fps, cfg.renderCrf)) { gw.shutdown(); return 1; }
+    if (!pipe.open(silentVideo, w, h, fps, cfg.renderCrf, encoder)) { gw.shutdown(); return 1; }
 
     // t = 0 is the start of the pre-roll; the last tile is reached at
     // tileStartTimes().back(), plus a configurable tail.

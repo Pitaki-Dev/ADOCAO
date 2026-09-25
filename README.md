@@ -136,6 +136,19 @@ A GL context is still required, so a display (real, or `xvfb-run`) must exist:
 xvfb-run -a -s "-screen 0 1280x720x24" ./build/ADOCAO ... --render out.mp4
 ```
 
+Encoding is **on the GPU by default**. `--encoder auto` (the default) uses
+`h264_nvenc` when the OpenGL renderer reports an NVIDIA GPU and the local
+ffmpeg has that encoder; otherwise it falls back to `libx264` on the CPU.
+A software rasteriser (`llvmpipe` / `softpipe`, i.e. CI runners) is detected
+and reported in `ADOCAO.log` along with the chosen encoder.
+
+```
+--encoder auto | libx264 | h264_nvenc | h264_qsv | h264_amf | ...
+```
+
+`--crf` is interpreted per encoder family: `-crf` for x264/x265,
+`-cq` (+`-b:v 0`) for NVENC, `-global_quality` for QSV, `-qp_i/-qp_p` for AMF.
+
 `.github/workflows/render-video.yml` wraps all of this so a level can be
 rendered to an MP4 on a CI runner and downloaded as an artifact.
 

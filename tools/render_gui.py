@@ -22,6 +22,13 @@ PROGRESS_RE = re.compile(r"frame\s+(\d+)\s*/\s*(\d+)")
 
 RESOLUTIONS = ("1920x1080", "2560x1440", "3840x2160", "1280x720", "854x480")
 FPS_LIST = ("120", "60", "30", "24")
+# 显示名 -> --encoder 参数值
+ENCODERS = (
+    ("自动（检测到 N 卡就用 NVENC）", "auto"),
+    ("CPU · libx264", "libx264"),
+    ("GPU · NVENC (NVIDIA)", "h264_nvenc"),
+)
+ENC_MAP = {label: value for label, value in ENCODERS}
 LEVEL_TYPES = (("ADOFAI 关卡", "*.adofai *.level"), ("所有文件", "*.*"))
 MUSIC_TYPES = (("音频", "*.wav *.ogg *.mp3 *.flac *.m4a *.aiff"), ("所有文件", "*.*"))
 
@@ -55,6 +62,7 @@ class RenderApp:
         self.v_w = tk.StringVar(value="1920")
         self.v_h = tk.StringVar(value="1080")
         self.v_fps = tk.StringVar(value="120")
+        self.v_enc = tk.StringVar(value=ENCODERS[0][0])
         self.v_hit = tk.BooleanVar(value=True)
         self.v_zoom = tk.StringVar()
         self.v_tail = tk.StringVar()
@@ -115,10 +123,14 @@ class RenderApp:
         ttk.Entry(res, textvariable=self.v_h, width=6).grid(row=0, column=3, padx=(2, 0))
         ttk.Label(res, text="（可直接改宽/高）", foreground="#888").grid(row=0, column=4, padx=(8, 0))
 
-        # 4 帧率
+        # 4 帧率 + 编码器
         label(4, "帧率 (fps)")
-        ttk.Combobox(frm, textvariable=self.v_fps, values=FPS_LIST, width=11).grid(
-            row=4, column=1, sticky="w", pady=3)
+        row4 = ttk.Frame(frm)
+        row4.grid(row=4, column=1, columnspan=2, sticky="ew", pady=3)
+        ttk.Combobox(row4, textvariable=self.v_fps, values=FPS_LIST, width=11).grid(row=0, column=0)
+        ttk.Label(row4, text="编码器").grid(row=0, column=1, padx=(16, 6))
+        ttk.Combobox(row4, textvariable=self.v_enc, values=[n for n, _ in ENCODERS],
+                     width=26, state="readonly").grid(row=0, column=2)
 
         # 5 高级
         label(5, "高级（可留空）")
@@ -227,6 +239,7 @@ class RenderApp:
             args += ["--zoom", self.v_zoom.get().strip()]
         if self.v_tail.get().strip():
             args += ["--tail", self.v_tail.get().strip()]
+        args += ["--encoder", ENC_MAP[self.v_enc.get()]]
         self.out_file = out
         return args
 
