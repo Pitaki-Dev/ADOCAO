@@ -110,9 +110,35 @@ adocao.exe --level <file> --music <file> [--width N] [--height N]
            [--force-hitsound [TYPE]] [--auto-play] [--export] [--legacy-culling]
            [--msaa N] [--exclusive | --no-exclusive]
            [--trail-duration SEC] [--trail-sample-rate N]
+           [--render FILE] [--fps N] [--crf N] [--tail SEC]
 ```
 
 Without `--level`, falls through to the ImGui launcher.
+
+## Video export
+
+`--render <file.mp4>` writes the level straight to a video file instead of
+opening a window. The level is played on a **deterministic clock** — frame *N*
+is always at `t = N / fps` — so the output does not depend on how fast the
+machine can draw, and there are no dropped or duplicated frames:
+
+```bash
+./build/ADOCAO --level level.adofai --music song.ogg \
+               --render out.mp4 --width 1920 --height 1080 --fps 60
+```
+
+Rendering happens into an offscreen framebuffer and every frame is piped to
+`ffmpeg`; afterwards the music and the synthesized hitsounds are muxed in as
+audio tracks. `ffmpeg` must be on `PATH` — there is no libav dependency.
+A GL context is still required, so a display (real, or `xvfb-run`) must exist:
+
+```bash
+xvfb-run -a -s "-screen 0 1280x720x24" ./build/ADOCAO ... --render out.mp4
+```
+
+`.github/workflows/render-video.yml` wraps all of this so a level can be
+rendered to an MP4 on a CI runner and downloaded as an artifact.
+
 
 ## Project Structure
 

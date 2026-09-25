@@ -3,6 +3,7 @@
 #include "LoadingWindow.hpp"
 #include "LevelLoader.hpp"
 #include "GameWindow.hpp"
+#include "VideoRenderer.hpp"
 #include "core/timeline/Timeline.hpp"
 #include "core/util/Logger.hpp"
 #include <GLFW/glfw3.h>
@@ -235,6 +236,14 @@ int runApplicationFromCLI(const LauncherConfig& cfg, bool debugConsole) {
         LOG_I("Exported hitsounds to %s", outPath.c_str());
         glfwTerminate();
         return 0;
+    }
+
+    // Offline video rendering: no loading window, no audio device, frames go
+    // straight to ffmpeg. See app/VideoRenderer.cpp.
+    if (config.offlineRender()) {
+        int rc = renderLevelToVideo(config);
+        glfwTerminate();
+        return rc;
     }
 
     LoadResult loadResult;

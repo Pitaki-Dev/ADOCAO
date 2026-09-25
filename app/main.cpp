@@ -46,6 +46,10 @@ int main(int argc, char* argv[]) {
         else if (strcmp(argv[i], "--trail-duration") == 0 && i+1<argc) cli.trailDuration = (float)atof(argv[++i]);
         else if (strcmp(argv[i], "--trail-sample-rate") == 0 && i+1<argc) cli.trailSampleRate = (float)atof(argv[++i]);
         else if (strcmp(argv[i], "--export") == 0)                cli.exportHitsounds = true;
+        else if (strcmp(argv[i], "--render") == 0   && i+1<argc) cli.renderVideoPath = argv[++i];
+        else if (strcmp(argv[i], "--fps") == 0      && i+1<argc) cli.renderFps = atoi(argv[++i]);
+        else if (strcmp(argv[i], "--crf") == 0      && i+1<argc) cli.renderCrf = atoi(argv[++i]);
+        else if (strcmp(argv[i], "--tail") == 0     && i+1<argc) cli.renderTailSeconds = (float)atof(argv[++i]);
     }
 
     if (cli.exportHitsounds && !cli.levelPath.empty()) {

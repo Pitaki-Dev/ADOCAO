@@ -16,10 +16,23 @@ void showGameWindow(const LauncherConfig& cfg, LoadResult& loadResult);
 // Internal: GameWindow class with separated update/render phases
 class GameWindow {
 public:
-    bool init(const LauncherConfig& cfg, LoadResult& loadResult);
+    bool init(const LauncherConfig& cfg, LoadResult& result);
     void run();
+    void shutdown();
+
+    // Offline video rendering: advance one frame with a synthetic clock instead
+    // of glfwGetTime(), drawing into whatever framebuffer is currently bound.
+    // No frame pacing, no buffer swap. See app/VideoRenderer.cpp.
+    void stepOffline(double nowSec, float deltaMs);
+    bool meshReady() const { return m_meshReady; }
 
 private:
+    // Render target size: the window framebuffer online, the FBO offline.
+    void framebufferSize(int& w, int& h) const;
+    double m_now = 0.0;
+    bool   m_offline = false;
+    int    m_fbW = 0, m_fbH = 0;
+
     GLFWwindow* m_window = nullptr;
     GLFWwindow* m_sharedWindow = nullptr;
     std::future<void> m_buildFuture;

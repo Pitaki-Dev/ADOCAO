@@ -63,6 +63,7 @@ extern PFNGLBINDFRAMEBUFFERPROC        glad_BindFramebuffer;
 extern PFNGLFRAMEBUFFERTEXTURE2DPROC   glad_FramebufferTexture2D;
 extern PFNGLCHECKFRAMEBUFFERSTATUSPROC glad_CheckFramebufferStatus;
 extern PFNGLDELETEFRAMEBUFFERSPROC     glad_DeleteFramebuffers;
+extern PFNGLREADPIXELSPROC             glad_ReadPixels;
 
 // Rendering
 extern PFNGLSCISSORPROC      glad_Scissor;
@@ -133,6 +134,7 @@ bool loadGLCore();
 #define glFramebufferTexture2D  glad_FramebufferTexture2D
 #define glCheckFramebufferStatus glad_CheckFramebufferStatus
 #define glDeleteFramebuffers    glad_DeleteFramebuffers
+#define glReadPixels            glad_ReadPixels
 
 #define glScissor               glad_Scissor
 #define glViewport              glad_Viewport

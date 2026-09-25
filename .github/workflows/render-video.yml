@@ -1,0 +1,138 @@
+name: Render Video
+
+# Renders a .adofai level to an MP4 on a GitHub runner and uploads it as an
+# artifact. The runner is x86_64, so Mesa's llvmpipe works normally (the
+# Android/SVE crash seen on ARM is not an issue here).
+#
+# Level/music resolution order:
+#   1. `level_url` / `music_url` inputs, if given
+#   2. otherwise the files committed under ci/level/
+
+on:
+  workflow_dispatch:
+    inputs:
+      level_url:
+        description: 'Direct URL to a .adofai level (empty = ci/level/level.adofai)'
+        required: false
+        default: ''
+      music_url:
+        description: 'Direct URL to the song (empty = ci/level/music.ogg)'
+        required: false
+        default: ''
+      width:
+        description: 'Output width'
+        required: false
+        default: '1920'
+      height:
+        description: 'Output height'
+        required: false
+        default: '1080'
+      fps:
+        description: 'Frame rate'
+        required: false
+        default: '60'
+      crf:
+        description: 'x264 CRF, lower = better quality'
+        required: false
+        default: '18'
+      tail:
+        description: 'Seconds to keep rolling after the last tile'
+        required: false
+        default: '1.0'
+
+permissions:
+  contents: read
+
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    # Generous: software rendering is CPU-bound.
+    timeout-minutes: 300
+    env:
+      LIBGL_ALWAYS_SOFTWARE: '1'
+      GALLIUM_DRIVER: llvmpipe
+      INPUT_LEVEL_URL: ${{ inputs.level_url }}
+      INPUT_MUSIC_URL: ${{ inputs.music_url }}
+      WIDTH: ${{ inputs.width }}
+      HEIGHT: ${{ inputs.height }}
+      FPS: ${{ inputs.fps }}
+      CRF: ${{ inputs.crf }}
+      TAIL: ${{ inputs.tail }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            cmake ninja-build pkg-config xvfb ffmpeg \
+            libgl-dev libgl1-mesa-dri \
+            libwayland-dev libxkbcommon-dev \
+            libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev
+
+      - name: Cache FetchContent dependencies
+        uses: actions/cache@v4
+        with:
+          path: build/_deps
+          key: deps-${{ runner.os }}-${{ hashFiles('CMakeLists.txt') }}
+
+      - name: Configure
+        run: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Resolve level and music
+        run: |
+          set -euo pipefail
+          mkdir -p work
+
+          LEVEL="ci/level/level.adofai"
+          if [ -n "$INPUT_LEVEL_URL" ]; then
+            echo "Downloading level from $INPUT_LEVEL_URL"
+            curl -fsSL "$INPUT_LEVEL_URL" -o work/level.adofai
+            LEVEL="work/level.adofai"
+          fi
+          [ -f "$LEVEL" ] || { echo "::error::No level file found ($LEVEL)"; exit 1; }
+
+          # No extension needed: ffmpeg probes the container by content.
+          MUSIC="ci/level/music.ogg"
+          if [ -n "$INPUT_MUSIC_URL" ]; then
+            echo "Downloading music from $INPUT_MUSIC_URL"
+            curl -fsSL "$INPUT_MUSIC_URL" -o work/music
+            MUSIC="work/music"
+          fi
+          [ -f "$MUSIC" ] || MUSIC=""
+
+          echo "LEVEL=$LEVEL" >> "$GITHUB_ENV"
+          echo "MUSIC=$MUSIC" >> "$GITHUB_ENV"
+          echo "Level: $LEVEL"
+          echo "Music: ${MUSIC:-<none>}"
+
+      - name: Render
+        run: |
+          set -euo pipefail
+          xvfb-run -a -s "-screen 0 1280x720x24" \
+            ./build/ADOCAO \
+              --level "$LEVEL" \
+              ${MUSIC:+--music "$MUSIC"} \
+              --render work/output.mp4 \
+              --width "$WIDTH" --height "$HEIGHT" \
+              --fps "$FPS" --crf "$CRF" --tail "$TAIL" \
+              --debug
+
+      - name: Inspect output
+        run: |
+          ls -lh work/output.mp4
+          ffprobe -v error -select_streams v:0 -show_entries stream=codec_name,width,height,r_frame_rate,nb_frames \
+                  -show_entries format=duration,size -of default=noprint_wrappers=1 work/output.mp4
+          ffprobe -v error -select_streams a:0 -show_entries stream=codec_name,channels,sample_rate \
+                  -of default=noprint_wrappers=1 work/output.mp4
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rendered-video
+          path: work/output.mp4
+          if-no-files-found: error
+          retention-days: 14

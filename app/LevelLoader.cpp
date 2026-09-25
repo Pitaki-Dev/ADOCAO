@@ -1,4 +1,5 @@
 #include "LevelLoader.hpp"
+#include "core/util/Logger.hpp"
 #include <cstring>
 #include <thread>
 #include <future>
@@ -42,9 +43,13 @@ void runLevelPreload(const LauncherConfig& cfg, LoadingProgress& progress,
 void runLevelLoading(const LauncherConfig& cfg, LoadingProgress& progress, LoadResult& result) {
     report(progress, 0.02f, "Starting audio engine...");
 
-    // Start audio init + music loading in background immediately (parallel with level parsing)
+    // Start audio init + music loading in background immediately (parallel with level parsing).
+    // Offline video renders have no audio device — the music file is handed to
+    // ffmpeg for muxing instead, so skip the engine entirely.
     std::future<void> audioFuture;
-    if (!cfg.musicPath.empty()) {
+    if (cfg.offlineRender()) {
+        LOG_D("Offline render: skipping audio engine init");
+    } else if (!cfg.musicPath.empty()) {
         audioFuture = std::async(std::launch::async, [&]() {
             result.audio.init();
             result.audio.loadMusic(cfg.musicPath);

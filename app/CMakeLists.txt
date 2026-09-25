@@ -12,6 +12,10 @@ set(ADOCAO_APP_SOURCES
     LevelLoader.hpp
     GameWindow.cpp
     GameWindow.hpp
+    VideoRenderer.cpp
+    VideoRenderer.hpp
+    Ffmpeg.cpp
+    Ffmpeg.hpp
 )
 
 add_library(adocao_imgui STATIC

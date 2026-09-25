@@ -124,6 +124,9 @@ static void navigateToTile(const LevelData& level, int floor,
 
 bool GameWindow::init(const LauncherConfig& cfg, LoadResult& result) {
     m_cfg = &cfg;
+    m_offline = cfg.offlineRender();
+    m_fbW = cfg.resolutionW;
+    m_fbH = cfg.resolutionH;
     m_level = result.level.get();
     m_timeline = result.timeline.get();
     m_playback = result.playback.get();
@@ -172,7 +175,12 @@ bool GameWindow::init(const LauncherConfig& cfg, LoadResult& result) {
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
 
-    if (cfg.fullscreen) {
+    if (m_offline) {
+        // Headless render: tiny invisible window, everything is drawn into the
+        // renderer's FBO, so the window size is irrelevant.
+        glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
+        m_window = glfwCreateWindow(320, 180, "ADOCAO (render)", nullptr, nullptr);
+    } else if (cfg.fullscreen) {
         if (cfg.exclusiveFullscreen) {
             // Exclusive fullscreen: GPU dedicated to this app, mode switch
             glfwWindowHint(GLFW_DECORATED, GLFW_TRUE);
@@ -214,6 +222,8 @@ bool GameWindow::init(const LauncherConfig& cfg, LoadResult& result) {
     } else {
         m_useAsyncBuild = false;
     }
+    // Offline rendering needs the mesh before frame 0 — never build async.
+    if (m_offline) m_useAsyncBuild = false;
     LOG_D("Async build: %s", m_useAsyncBuild ? "ON" : "OFF (sync)");
 
     // Show window immediately so user sees it while heavy init runs
@@ -293,8 +303,8 @@ bool GameWindow::init(const LauncherConfig& cfg, LoadResult& result) {
     }
     m_input.camera = &m_camera;
 
-    // Hitsound attach
-    if (m_hitsoundMgr->isSynthesized()) {
+    // Hitsound attach (offline renders have no audio device)
+    if (!m_offline && m_hitsoundMgr->isSynthesized()) {
         m_audioEngine->attachExternal(m_hitsoundMgr->buffer(), m_hitsoundMgr->totalFrames(),
             m_hitsoundMgr->channels(), m_hitsoundMgr->sampleRate(),
             m_hitsoundMgr->cursor(), m_hitsoundMgr->playing());
@@ -448,7 +458,7 @@ void GameWindow::handleInput() {
 }
 
 void GameWindow::update(float) {
-    double now = glfwGetTime();
+    double now = m_now;
 
     // Playback update
     if (m_playback->isPlaying()) {
@@ -531,9 +541,8 @@ void GameWindow::applyPlaybackFrame() {
 }
 
 void GameWindow::render() {
-    int fbW, fbH, winW, winH;
-    glfwGetFramebufferSize(m_window, &fbW, &fbH);
-    glfwGetWindowSize(m_window, &winW, &winH);
+    int fbW, fbH;
+    framebufferSize(fbW, fbH);
     Viewport vp = computeLetterbox(fbW, fbH, m_targetAspect);
 
     glViewport(0, 0, fbW, fbH);
@@ -614,7 +623,7 @@ void GameWindow::render() {
         glEnable(GL_DEPTH_TEST);
     }
 
-    glfwSwapBuffers(m_window);
+    if (!m_offline) glfwSwapBuffers(m_window);
 }
 
 void GameWindow::toggleFullscreen() {
@@ -679,6 +688,7 @@ void GameWindow::run() {
         }
         float deltaMs = (float)(elapsed * 1000.0);
         m_lastFrameTime = now;
+        m_now = now;
         if (deltaMs > 500.0f) deltaMs = 0.0f;
         else if (deltaMs > 100.0f) deltaMs = 100.0f;
 
@@ -696,14 +706,29 @@ void GameWindow::run() {
         }
     }
 
-    m_audioEngine->shutdown();
-    // Cleanup heap-allocated objects
-    delete m_tileMesh;
-    delete m_tileShader;
-    delete m_planetShader;
-    delete m_trailShader;
-    delete m_highlightShader;
-    glfwDestroyWindow(m_window);
+    shutdown();
+}
+
+void GameWindow::framebufferSize(int& w, int& h) const {
+    if (m_offline) { w = m_fbW; h = m_fbH; return; }
+    glfwGetFramebufferSize(m_window, &w, &h);
+}
+
+void GameWindow::stepOffline(double nowSec, float deltaMs) {
+    m_now = nowSec;
+    update(deltaMs);
+    render();
+}
+
+void GameWindow::shutdown() {
+    if (!m_offline) m_audioEngine->shutdown();
+    delete m_tileMesh;        m_tileMesh = nullptr;
+    delete m_tileShader;      m_tileShader = nullptr;
+    delete m_planetShader;    m_planetShader = nullptr;
+    delete m_trailShader;     m_trailShader = nullptr;
+    delete m_highlightShader; m_highlightShader = nullptr;
+    if (m_sharedWindow) { glfwDestroyWindow(m_sharedWindow); m_sharedWindow = nullptr; }
+    if (m_window) { glfwDestroyWindow(m_window); m_window = nullptr; }
 }
 
 void showGameWindow(const LauncherConfig& cfg, LoadResult& result) {

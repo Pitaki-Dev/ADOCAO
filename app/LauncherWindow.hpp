@@ -31,6 +31,16 @@ struct LauncherConfig {
     std::string exportDir;         // hitsound export directory (defaults to level dir)
     bool cancelled = false;
 
+    // Offline video rendering (--render <file>). A non-empty path switches the
+    // app into headless render mode: hidden window, deterministic frame clock,
+    // no audio device; frames are piped to ffmpeg and the music + hitsounds are
+    // muxed in afterwards. See app/VideoRenderer.cpp.
+    std::string renderVideoPath;
+    int   renderFps         = 60;
+    int   renderCrf         = 18;
+    float renderTailSeconds = 1.0f;
+    bool offlineRender() const { return !renderVideoPath.empty(); }
+
     // Wizard (5.0.0): result of the "Next" preload step (parse + timeline).
     // Hitsound synthesis + audio are finished after Start in runLevelLoading.
     std::shared_ptr<LevelData> preloadedLevel;

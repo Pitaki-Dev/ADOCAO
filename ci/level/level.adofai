@@ -1,0 +1,31 @@
+{
+  "settings": {
+    "version": 15,
+    "song": "ADOCAO sandbox test",
+    "artist": "CHT-1192",
+    "author": "sandbox",
+    "bpm": 120.0,
+    "offset": 0.0,
+    "hitsound": "Kick",
+    "hitsoundVolume": 100.0,
+    "trackColor": "debb7b",
+    "backgroundColor": "12141c",
+    "zoom": 100.0
+  },
+  "angleData": [
+    0, 90, 180, 270, 0, 90, 180, 270, 0, 90,
+    180, 270, 0, 90, 180, 270, 0, 90, 180, 270,
+    0, 90, 180, 270, 0, 90, 180, 270, 0, 90,
+    180, 270, 0, 90, 180, 270, 0, 90, 180, 270
+  ],
+  "actions": [
+    { "floor": 4,  "eventType": "Twirl" },
+    { "floor": 9,  "eventType": "SetSpeed", "speedType": "Multiplier", "bpmMultiplier": 1.5 },
+    { "floor": 16, "eventType": "SetSpeed", "speedType": "Multiplier", "bpmMultiplier": 0.5 },
+    { "floor": 24, "eventType": "Twirl" },
+    { "floor": 30, "eventType": "SetHitsound", "hitsound": "Snare", "hitsoundVolume": 100 },
+    { "floor": 35, "eventType": "Pause", "duration": 1.0 },
+    { "floor": 38, "eventType": "Bookmark" }
+  ],
+  "decorations": []
+}

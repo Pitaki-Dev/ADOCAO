@@ -51,6 +51,7 @@ PFNGLBINDFRAMEBUFFERPROC        glad_BindFramebuffer;
 PFNGLFRAMEBUFFERTEXTURE2DPROC   glad_FramebufferTexture2D;
 PFNGLCHECKFRAMEBUFFERSTATUSPROC glad_CheckFramebufferStatus;
 PFNGLDELETEFRAMEBUFFERSPROC     glad_DeleteFramebuffers;
+PFNGLREADPIXELSPROC             glad_ReadPixels;
 
 PFNGLSCISSORPROC      glad_Scissor;
 PFNGLVIEWPORTPROC     glad_Viewport;
@@ -136,6 +137,7 @@ bool loadGLCore() {
     loadGL(glad_FramebufferTexture2D,   "glFramebufferTexture2D");
     loadGL(glad_CheckFramebufferStatus, "glCheckFramebufferStatus");
     loadGL(glad_DeleteFramebuffers,     "glDeleteFramebuffers");
+    loadGL(glad_ReadPixels,             "glReadPixels");
 
     // Rendering
     loadGL(glad_Scissor,      "glScissor");
