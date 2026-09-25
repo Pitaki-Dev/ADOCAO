@@ -78,14 +78,20 @@ FramePipe::~FramePipe() {
     if (m_pipe) pclose(m_pipe);
 }
 
-bool FramePipe::open(const std::string& outPath, int w, int h, int fps, int crf,
-                     const std::string& encoder) {
+bool FramePipe::open(const std::string& outPath, int inW, int inH, int outW, int outH,
+                     int fps, int crf, const std::string& encoder) {
     m_out = outPath;
+    // vflip: OpenGL hands back bottom-up rows. scale: downscale a supersampled
+    // render to the requested output size (lanczos = proper anti-aliasing).
+    std::string filters = "vflip";
+    if (outW > 0 && outH > 0 && (outW != inW || outH != inH))
+        filters += ",scale=" + std::to_string(outW) + ":" + std::to_string(outH) + ":flags=lanczos";
+
     std::string cmd =
         "ffmpeg -y -hide_banner -loglevel error -nostdin "
-        "-f rawvideo -pixel_format rgba -video_size " + std::to_string(w) + "x" + std::to_string(h) +
+        "-f rawvideo -pixel_format rgba -video_size " + std::to_string(inW) + "x" + std::to_string(inH) +
         " -framerate " + std::to_string(fps) + " -i - "
-        "-vf vflip " + encoderArgs(encoder, crf) +
+        "-vf " + quote(filters) + " " + encoderArgs(encoder, crf) +
         " -pix_fmt yuv420p " + quote(outPath);
     m_pipe = popen(cmd.c_str(), "w");
     if (!m_pipe) {

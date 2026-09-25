@@ -9,6 +9,7 @@
 #include "glad/gl_core.hpp"
 
 #include <cctype>
+#include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <string>
@@ -106,6 +107,33 @@ std::string pickEncoder(const std::string& requested, const std::string& rendere
 
 } // namespace
 
+namespace {
+
+// Wall-clock breakdown of the render loop. Guessing at "the GPU is idle" is
+// useless without this: this workload draws a few hundred instanced quads, so
+// the GPU is never the bottleneck — the question is which CPU phase is.
+struct PhaseStats {
+    using Clock = std::chrono::steady_clock;
+    double step = 0.0, readback = 0.0, encode = 0.0;  // accumulated seconds
+    long long frames = 0;
+
+    static double ms(Clock::time_point a, Clock::time_point b) {
+        return std::chrono::duration<double, std::milli>(b - a).count();
+    }
+
+    void report(long long done, long long total) const {
+        if (frames == 0) return;
+        const double n = (double)frames;
+        const double tot = (step + readback + encode) / n;
+        LOG_I("  frame %lld / %lld | step %.2fms | readback %.2fms | encode %.2fms "
+              "| total %.2fms (%.1f fps)",
+              done, total, step / n, readback / n, encode / n, tot,
+              tot > 0.0 ? 1000.0 / tot : 0.0);
+    }
+};
+
+} // namespace
+
 int renderLevelToVideo(const LauncherConfig& cfg) {
     LoadResult loadResult;
     LoadingProgress progress;
@@ -136,8 +164,10 @@ int renderLevelToVideo(const LauncherConfig& cfg) {
     LOG_I("Video encoder: %s", encoder.c_str());
 
     const int w = cfg.resolutionW, h = cfg.resolutionH, fps = cfg.renderFps;
+    const int ss = cfg.ssaa > 0 ? cfg.ssaa : 1;
+    const int rw = w * ss, rh = h * ss;   // supersampled render size
     OffscreenTarget target;
-    if (!target.create(w, h)) { gw.shutdown(); return 1; }
+    if (!target.create(rw, rh)) { gw.shutdown(); return 1; }
 
     // Hitsounds are synthesized in memory; write them next to the output so
     // ffmpeg can mux them as a second audio track.
@@ -149,7 +179,7 @@ int renderLevelToVideo(const LauncherConfig& cfg) {
 
     const std::string silentVideo = cfg.renderVideoPath + ".video.mp4";
     FramePipe pipe;
-    if (!pipe.open(silentVideo, w, h, fps, cfg.renderCrf, encoder)) { gw.shutdown(); return 1; }
+    if (!pipe.open(silentVideo, rw, rh, w, h, fps, cfg.renderCrf, encoder)) { gw.shutdown(); return 1; }
 
     // t = 0 is the start of the pre-roll; the last tile is reached at
     // tileStartTimes().back(), plus a configurable tail.
@@ -159,22 +189,38 @@ int renderLevelToVideo(const LauncherConfig& cfg) {
     if (cfg.renderDurationSeconds > 0.0f && (double)cfg.renderDurationSeconds < endSec)
         endSec = (double)cfg.renderDurationSeconds;
     const long long totalFrames = (long long)std::llround(endSec * (double)fps);
-    LOG_I("Render: %lld frames, %dx%d @ %d fps (%.2fs)", totalFrames, w, h, fps, endSec);
+    if (ss > 1)
+        LOG_I("Render: %lld frames, %dx%d @ %d fps (%.2fs), SSAA x%d (drawing at %dx%d)",
+              totalFrames, w, h, fps, endSec, ss, rw, rh);
+    else
+        LOG_I("Render: %lld frames, %dx%d @ %d fps (%.2fs)", totalFrames, w, h, fps, endSec);
 
     loadResult.playback->start(0.0);
     target.bind();
 
-    std::vector<unsigned char> pixels((size_t)w * (size_t)h * 4);
+    std::vector<unsigned char> pixels((size_t)rw * (size_t)rh * 4);
     const float frameMs = 1000.0f / (float)fps;
+    PhaseStats stats;
     bool ok = true;
     for (long long f = 0; f < totalFrames && ok; ++f) {
+        const auto t0 = PhaseStats::Clock::now();
         gw.stepOffline((double)f / (double)fps, frameMs);
-        glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, pixels.data());
+        const auto t1 = PhaseStats::Clock::now();
+        glReadPixels(0, 0, rw, rh, GL_RGBA, GL_UNSIGNED_BYTE, pixels.data());
+        const auto t2 = PhaseStats::Clock::now();
         ok = pipe.writeFrame(pixels.data(), pixels.size());
+        const auto t3 = PhaseStats::Clock::now();
+
+        stats.step     += PhaseStats::ms(t0, t1);
+        stats.readback += PhaseStats::ms(t1, t2);
+        stats.encode   += PhaseStats::ms(t2, t3);
+        stats.frames++;
+
         if (f % ((long long)fps * 10) == 0)
-            LOG_I("  frame %lld / %lld", f, totalFrames);
+            stats.report(f, totalFrames);
     }
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
+    stats.report(totalFrames, totalFrames);
     if (!pipe.close()) ok = false;
 
     gw.shutdown();

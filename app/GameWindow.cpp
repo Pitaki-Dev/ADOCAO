@@ -125,8 +125,11 @@ static void navigateToTile(const LevelData& level, int floor,
 bool GameWindow::init(const LauncherConfig& cfg, LoadResult& result) {
     m_cfg = &cfg;
     m_offline = cfg.offlineRender();
-    m_fbW = cfg.resolutionW;
-    m_fbH = cfg.resolutionH;
+    // Offline renders supersample: draw at N× and let ffmpeg downscale, which is
+    // the only anti-aliasing available since the offscreen FBO has no MSAA.
+    const int ss = cfg.ssaa > 0 ? cfg.ssaa : 1;
+    m_fbW = cfg.resolutionW * ss;
+    m_fbH = cfg.resolutionH * ss;
     m_level = result.level.get();
     m_timeline = result.timeline.get();
     m_playback = result.playback.get();

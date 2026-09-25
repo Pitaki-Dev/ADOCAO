@@ -39,6 +39,10 @@ on:
         description: 'Video encoder (empty/auto = NVENC when available, else libx264)'
         required: false
         default: ''
+      ssaa:
+        description: 'Supersampling factor for anti-aliasing (1 = off, 2 = 2x resolution)'
+        required: false
+        default: '2'
       crf:
         description: 'x264 CRF, lower = better quality'
         required: false
@@ -69,6 +73,7 @@ jobs:
       TAIL: ${{ inputs.tail }}
       ZOOM: ${{ inputs.zoom }}
       ENCODER: ${{ inputs.encoder }}
+      SSAA: ${{ inputs.ssaa }}
 
     steps:
       - uses: actions/checkout@v4
@@ -134,7 +139,8 @@ jobs:
               --width "$WIDTH" --height "$HEIGHT" \
               --fps "$FPS" --crf "$CRF" --tail "$TAIL" \
               ${ZOOM:+--zoom "$ZOOM"} \
-              ${ENCODER:+--encoder "$ENCODER"}
+              ${ENCODER:+--encoder "$ENCODER"} \
+              ${SSAA:+--ssaa "$SSAA"}
 
       - name: Render log
         if: always()

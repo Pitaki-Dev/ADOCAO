@@ -29,6 +29,14 @@ ENCODERS = (
     ("GPU · NVENC (NVIDIA)", "h264_nvenc"),
 )
 ENC_MAP = {label: value for label, value in ENCODERS}
+# 抗锯齿：以 N 倍分辨率渲染，再由 ffmpeg 降采样
+SSAA_OPTS = (
+    ("关闭", "1"),
+    ("2x（推荐）", "2"),
+    ("3x", "3"),
+    ("4x", "4"),
+)
+SSAA_MAP = {label: value for label, value in SSAA_OPTS}
 LEVEL_TYPES = (("ADOFAI 关卡", "*.adofai *.level"), ("所有文件", "*.*"))
 MUSIC_TYPES = (("音频", "*.wav *.ogg *.mp3 *.flac *.m4a *.aiff"), ("所有文件", "*.*"))
 
@@ -63,12 +71,13 @@ class RenderApp:
         self.v_h = tk.StringVar(value="1080")
         self.v_fps = tk.StringVar(value="120")
         self.v_enc = tk.StringVar(value=ENCODERS[0][0])
+        self.v_ssaa = tk.StringVar(value=SSAA_OPTS[1][0])
         self.v_hit = tk.BooleanVar(value=True)
         self.v_zoom = tk.StringVar()
         self.v_tail = tk.StringVar()
 
         root.title("ADOCAO 视频渲染器")
-        root.minsize(700, 520)
+        root.minsize(860, 540)
         self._build()
         self.root.after(120, self._drain)
 
@@ -130,7 +139,12 @@ class RenderApp:
         ttk.Combobox(row4, textvariable=self.v_fps, values=FPS_LIST, width=11).grid(row=0, column=0)
         ttk.Label(row4, text="编码器").grid(row=0, column=1, padx=(16, 6))
         ttk.Combobox(row4, textvariable=self.v_enc, values=[n for n, _ in ENCODERS],
-                     width=26, state="readonly").grid(row=0, column=2)
+                     width=22, state="readonly").grid(row=0, column=2)
+        ttk.Label(row4, text="抗锯齿").grid(row=0, column=3, padx=(16, 6))
+        ttk.Combobox(row4, textvariable=self.v_ssaa, values=[n for n, _ in SSAA_OPTS],
+                     width=12, state="readonly").grid(row=0, column=4)
+        ttk.Label(row4, text="（N 倍分辨率渲染后降采样）", foreground="#888").grid(
+            row=0, column=5, padx=(8, 0))
 
         # 5 高级
         label(5, "高级（可留空）")
@@ -240,6 +254,7 @@ class RenderApp:
         if self.v_tail.get().strip():
             args += ["--tail", self.v_tail.get().strip()]
         args += ["--encoder", ENC_MAP[self.v_enc.get()]]
+        args += ["--ssaa", SSAA_MAP[self.v_ssaa.get()]]
         self.out_file = out
         return args
 

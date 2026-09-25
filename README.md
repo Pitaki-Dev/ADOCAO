@@ -149,6 +149,16 @@ and reported in `ADOCAO.log` along with the chosen encoder.
 `--crf` is interpreted per encoder family: `-crf` for x264/x265,
 `-cq` (+`-b:v 0`) for NVENC, `-global_quality` for QSV, `-qp_i/-qp_p` for AMF.
 
+Anti-aliasing comes from **supersampling**: `--ssaa N` draws into an `N×`
+larger framebuffer and ffmpeg downscales with lanczos. The offscreen FBO has no
+MSAA, so this is the only AA available — and it also removes the sub-pixel
+speckle you get from events (e.g. a red SetSpeed-up icon is 0.22 world units,
+i.e. half a pixel at `--zoom 2.5` on 1080p).
+
+```
+--ssaa 1 | 2 | 3 | 4      (1 = off; 2 costs 4× the fill rate)
+```
+
 `.github/workflows/render-video.yml` wraps all of this so a level can be
 rendered to an MP4 on a CI runner and downloaded as an artifact.
 

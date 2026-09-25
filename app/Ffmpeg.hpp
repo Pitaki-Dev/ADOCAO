@@ -15,8 +15,8 @@ public:
     FramePipe(const FramePipe&) = delete;
     FramePipe& operator=(const FramePipe&) = delete;
 
-    bool open(const std::string& outPath, int w, int h, int fps, int crf,
-              const std::string& encoder);
+    bool open(const std::string& outPath, int inW, int inH, int outW, int outH,
+              int fps, int crf, const std::string& encoder);
     bool writeFrame(const void* rgba, size_t bytes);
     bool close();  // flush + wait; false if ffmpeg exited non-zero
 
