@@ -7,3 +7,5 @@ test/
 imgui.ini
 ADOCAO.log
 .DS_Store
+__pycache__/
+*.pyc
