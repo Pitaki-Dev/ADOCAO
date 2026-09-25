@@ -119,6 +119,8 @@ jobs:
       - name: Render
         run: |
           set -euo pipefail
+          # No --debug here: it forces enableHitsounds off, which would drop the
+          # hitsound track. Progress still lands in ADOCAO.log (see next step).
           xvfb-run -a -s "-screen 0 1280x720x24" \
             ./build/ADOCAO \
               --level "$LEVEL" \
@@ -126,8 +128,12 @@ jobs:
               --render work/output.mp4 \
               --width "$WIDTH" --height "$HEIGHT" \
               --fps "$FPS" --crf "$CRF" --tail "$TAIL" \
-              ${ZOOM:+--zoom "$ZOOM"} \
-              --debug
+              ${ZOOM:+--zoom "$ZOOM"}
+
+      - name: Render log
+        if: always()
+        run: |
+          if [ -f ADOCAO.log ]; then tail -n 60 ADOCAO.log; fi
 
       - name: Inspect output
         run: |
@@ -136,6 +142,8 @@ jobs:
                   -show_entries format=duration,size -of default=noprint_wrappers=1 work/output.mp4
           ffprobe -v error -select_streams a:0 -show_entries stream=codec_name,channels,sample_rate \
                   -of default=noprint_wrappers=1 work/output.mp4
+          echo "--- streams (music + hitsounds are mixed into one AAC track) ---"
+          ffprobe -v error -show_entries stream=index,codec_type -of csv=p=0 work/output.mp4
 
       - uses: actions/upload-artifact@v4
         with:
